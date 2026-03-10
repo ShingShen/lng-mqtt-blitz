@@ -19,7 +19,7 @@ A small, high‑concurrency MQTT stress tester written in Rust. It spawns a conf
 Requires Rust 1.65+ (stable).
 
 ```bash
-git clone https://github.com/yourusername/lng-mqtt-blitz.git
+git clone https://github.com/ShingShen/lng-mqtt-blitz
 cd lng-mqtt-blitz
 cargo build --release
 ```
