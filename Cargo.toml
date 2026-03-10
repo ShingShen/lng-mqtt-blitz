@@ -1,0 +1,23 @@
+[package]
+name = "lng-mqtt-blitz"
+version = "0.1.0"
+edition = "2021"
+authors = ["Senior Systems Architect"]
+description = "High-performance MQTT Stress Tester"
+
+[dependencies]
+tokio = { version = "1.36", features = ["full"] }
+rumqttc = { version = "0.24.0", features = ["use-rustls"] }
+ratatui = "0.26.1"
+crossterm = { version = "0.27.0", features = ["events"] }
+clap = { version = "4.5.1", features = ["derive", "env"] }
+config = "0.14.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+rand = "0.8.5"
+anyhow = "1.0.79"
+rustls = "0.22"
+tokio-rustls = "0.25.0"
+rustls-native-certs = "0.7.0"
+chrono = "0.4.33"
+libc = "0.2.153"

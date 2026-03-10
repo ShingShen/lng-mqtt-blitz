@@ -1,0 +1,7 @@
+target_host = "localhost"
+port = 1883
+use_tls = false
+connections = 10000
+interval_ms = 500
+ramp_up_rate = 200
+payload_template = "{\"id\": {{id}}, \"temp\": {{random}}, \"status\": \"active\"}"
