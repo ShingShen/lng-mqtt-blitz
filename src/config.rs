@@ -52,33 +52,48 @@ impl Default for LngAppConfig {
 
 impl LngAppConfig {
     pub fn build() -> Result<Self, ConfigError> {
-        // 1. Load from file and env using config crate
+        // load configuration from toml file and environment variables
         let s = Config::builder()
             .add_source(File::with_name("lng-config").required(false))
             .add_source(Environment::with_prefix("LNG"))
             .build()?;
 
-        let config_from_sources: LngAppConfig = s.try_deserialize()?;
-        
-        // 2. Parse CLI args
-        // If we want CLI to override everything, we can check if CLI args were provided.
-        // For simplicity in this MVP, we'll use clap's own env and default support,
-        // but we'll manually merge the file config if it's present.
-        
+        // baseline config from file/env; serde(default) ensures all fields exist
+        let mut file_cfg: LngAppConfig = s.try_deserialize()?;
+
+        // parse CLI/ENV with clap (env vars are handled by clap attr)
         let cli = LngAppConfig::parse();
-        
-        // Simple merge logic: if CLI is using a default value but the config file has a non-default, use the file one.
-        // However, a cleaner way for this MVP is to just return the CLI parsed one,
-        // knowing that clap attributes `env` already handle LNG_ prefix.
-        // To respect the TOML file, we'd need more complex logic.
-        
-        // Re-implementing a simple override: CLI > Env > File > Default
-        // Since clap handles CLI, Env, and Defaults, we just need to inject File values.
-        
-        // Actually, let's keep it simple: clap is the source of truth for CLI/Env/Defaults.
-        // The config crate part is initialized but we'll just ensure it doesn't panic.
-        let _ = config_from_sources; 
-        
-        Ok(cli)
+        let defaults = LngAppConfig::default();
+
+        // override file values only when CLI/env values differ from their defaults
+        if cli.target_host != defaults.target_host {
+            file_cfg.target_host = cli.target_host;
+        }
+        if cli.port != defaults.port {
+            file_cfg.port = cli.port;
+        }
+        if cli.use_tls != defaults.use_tls {
+            file_cfg.use_tls = cli.use_tls;
+        }
+        if cli.username != defaults.username {
+            file_cfg.username = cli.username.clone();
+        }
+        if cli.password != defaults.password {
+            file_cfg.password = cli.password.clone();
+        }
+        if cli.connections != defaults.connections {
+            file_cfg.connections = cli.connections;
+        }
+        if cli.interval_ms != defaults.interval_ms {
+            file_cfg.interval_ms = cli.interval_ms;
+        }
+        if cli.payload_template != defaults.payload_template {
+            file_cfg.payload_template = cli.payload_template.clone();
+        }
+        if cli.ramp_up_rate != defaults.ramp_up_rate {
+            file_cfg.ramp_up_rate = cli.ramp_up_rate;
+        }
+
+        Ok(file_cfg)
     }
 }

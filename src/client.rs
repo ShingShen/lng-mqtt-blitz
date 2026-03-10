@@ -5,6 +5,8 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
 use rand::Rng;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 
 use crate::config::LngAppConfig;
 use crate::stats::LngMetrics;
@@ -45,15 +47,15 @@ pub async fn spawn_lng_client(
     // Publisher task
     tokio::spawn(async move {
         let topic = format!("lng/blitz/{}", id);
-        
+
+        // prepare deterministic pieces outside the hot loop
+        let id_str = id.to_string();
+        let base_payload = config_p.payload_template.replace("{{id}}", &id_str);
+
+        let mut rng = StdRng::from_entropy();
+
         loop {
-            let payload = {
-                let mut rng = rand::thread_rng();
-                let mut p = config_p.payload_template.clone();
-                p = p.replace("{{id}}", &id.to_string());
-                p = p.replace("{{random}}", &rng.gen_range(10..100).to_string());
-                p
-            };
+            let payload = base_payload.replace("{{random}}", &rng.gen_range(10..100).to_string());
 
             if let Err(_) = client_p.publish(&topic, QoS::AtLeastOnce, false, payload).await {
                 metrics_p.errors.fetch_add(1, Ordering::Relaxed);

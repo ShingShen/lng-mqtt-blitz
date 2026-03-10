@@ -17,11 +17,11 @@ use crossterm::event::{self, Event, KeyCode};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Increase File Descriptor Limit for high-concurrency
-    increase_rlimit()?;
-
-    // Load Configuration
+    // Load configuration first so we know how many connections we plan to open
     let config = Arc::new(LngAppConfig::build().expect("Failed to load config"));
+
+    // Increase file descriptor limit based on configuration
+    increase_rlimit(config.connections)?;
     let metrics = Arc::new(LngMetrics::default());
     let mut stats_calc = StatsCalculator::new(Arc::clone(&metrics));
 
@@ -75,7 +75,8 @@ async fn main() -> Result<()> {
     });
 
     // UI and Event Loop
-    let mut ui_interval = interval(Duration::from_millis(100));
+    // slow down rendering to avoid starving tokio runtime
+    let mut ui_interval = interval(Duration::from_millis(500));
     loop {
         tokio::select! {
             _ = ui_interval.tick() => {
@@ -97,17 +98,26 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn increase_rlimit() -> Result<()> {
+fn increase_rlimit(connections: usize) -> Result<()> {
     unsafe {
-        let mut rlim = libc::rlimit {
-            rlim_cur: 65535,
-            rlim_max: 65535,
-        };
+        let mut rlim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut rlim) != 0 {
+            return Err(anyhow::anyhow!("failed to query RLIMIT_NOFILE"));
+        }
+
+        let required = connections as libc::rlim_t + 100;
+        if rlim.rlim_max < required {
+            eprintln!(
+                "Critical: open files hard limit ({}) is smaller than required {}. Please run 'ulimit -n {}' or raise your system limit",
+                rlim.rlim_max, required, required
+            );
+            std::process::exit(1);
+        }
+
+        // bump the soft limit up to the required level
+        rlim.rlim_cur = required;
         if libc::setrlimit(libc::RLIMIT_NOFILE, &rlim) != 0 {
-            // If 65535 is too high, try a more modest increase or just log it
-            rlim.rlim_cur = 10240;
-            rlim.rlim_max = 10240;
-            libc::setrlimit(libc::RLIMIT_NOFILE, &rlim);
+            return Err(anyhow::anyhow!("failed to set RLIMIT_NOFILE"));
         }
     }
     Ok(())
